@@ -1,0 +1,9 @@
+apps:
+  - script       : ./server/index.js
+    name         : steam-inventory-price-provider
+    instances    : 1
+    exec_mode    : cluster
+    max_restarts : 5
+    out_file     : logs/stdout.log
+    error_file   : logs/stderr.log
+    

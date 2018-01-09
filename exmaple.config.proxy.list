@@ -1,0 +1,4 @@
+# example default proxies list
+http://137.74.168.174:80
+http://137.74.168.175:80
+https://137.74.168.176:81
