@@ -8,20 +8,34 @@ let fs = require('fs'),
 const DEFAULT_PROXIES_LIST = `${__dirname}/../config.proxy.list`;
 
 let preferredProxies = [], spareProxies = [];
+let proxySuccessTimes = [];
+
 let proxyUpdater = null;
 
 loadDefaultProxies();
 
 module.exports = {
 	bindProxyUpdater,
+	getProxiesSummary,
 	getProxy, 
 	getProxyCount,
 	getNextProxyId,
 	getRandomProxyId,
 	cleanInvalidPreferredProxy,
+	markProxySuccess,
 	updateProxies
 };
 function bindProxyUpdater(_updater) { proxyUpdater = _updater; }
+
+function getProxiesSummary() { 
+	return {
+		preferredProxyCount: preferredProxies.length,
+		spareProxyCount: spareProxies.length,
+		preferredProxies: preferredProxies.map((ip, i) => ({
+			ip, success: (proxySuccessTimes[i] || 0) 
+		}))
+	}
+}
 
 function updateProxies(update = []) { 
 	// remove dumplicated
@@ -37,23 +51,32 @@ function updateProxies(update = []) {
 	spareProxies = spareProxies.concat(update);
 }
 
+let updating = false;
 function cleanInvalidPreferredProxy(id) { 
 	let proxy = preferredProxies[id];
+	proxySuccessTimes[id] = 0;
+	
 	if (spareProxies.length == 0) {
 		console.warn(`Warnning: could not clean invalid proxy: ${proxy}, because spare ip pool is empty!`);
 
-		if (config.enableProxiesUpdate) { 
+		if (!updating && config.enableProxiesUpdate) { 
+			updating = true;
 			process.nextTick(() => {
 				console.log('Start updating proxies ...')
-				proxyUpdater && proxyUpdater.get().then(newProxies => { 
+				proxyUpdater && proxyUpdater.get().then(newProxies => {
 					console.log(`Got ${newProxies.length} proxies.`);
 					updateProxies(newProxies);
+					updating = false;
 				});
 			});
 		}
 		return;
 	}
 	preferredProxies[id] = spareProxies.shift();
+}
+
+function markProxySuccess(id) { 
+	proxySuccessTimes[id] = (proxySuccessTimes[id] || 0) +1;
 }
 
 function getProxy(id) {
@@ -63,7 +86,21 @@ function getProxy(id) {
 }
 function getProxyCount() { return preferredProxies.length; }
 function getNextProxyId(id) { return (id + 1) >= preferredProxies.length ? 0 : (id + 1); }
-function getRandomProxyId() { return Math.floor(Math.random() * preferredProxies.length); }
+function getRandomProxyId() {
+	let id = Math.floor(Math.random() * preferredProxies.length);
+	
+	// Choose best proxy address (most success times)
+	let rate = proxySuccessTimes[id] || 0,
+		rateLeft = proxySuccessTimes[id - 1] || 0,
+		rateRight = proxySuccessTimes[id + 1] || 0;
+	let result = id;
+	if (rateLeft > rate) { rate = rateLeft; result = id - 1; }
+	if (rateRight > rate) { rate = rateRight; result = id + 1; }
+	
+	if (rate > 0)
+		console.log(`RandomProxy: ${preferredProxies[result]} success: ${rate} times`);
+	return result;
+}
 
 function loadDefaultProxies() { 
 	if (!fs.existsSync(DEFAULT_PROXIES_LIST))

@@ -26,7 +26,8 @@ pm2 start ecosystem.yaml;
 
 ``` bash
 curl '127.0.0.1:4000/';
-curl '127.0.0.1:4000/?country=CN&currency=23&appid=753&market_hash_name=762800-%3A2017eyeball%3A';
+curl '127.0.0.1:4000/summary?key=123456';
+curl '127.0.0.1:4000/?country=CN&currency=23&appid=753&market_hash_name=762800-%3A2017eyeball%3A&key=123456';
 ```
 
 ## Author

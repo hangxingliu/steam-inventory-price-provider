@@ -38,7 +38,8 @@ function _request(qs, proxyId = 0, retryTimes = 0) {
 			if (hasResponse) return;//avoid dumplicated response
 			hasResponse = true;
 
-			if (!err && response && response.statusCode != 429) {
+			if (!err && response && response.statusCode != 429 && response.statusCode != 403) {
+				proxies.markProxySuccess(proxyId);
 				console.log(`Success: ${response.statusMessage} (name: "${name}", proxy: ${proxy})`);
 				return resolve({ status: response.statusCode, body });
 			}
@@ -50,8 +51,14 @@ function _request(qs, proxyId = 0, retryTimes = 0) {
 				else
 					printError(`code: ${err.code || 'unknown'}  message: ${err.message || err}`);
 			}
-			if (response && response.statusCode == 429) {
-				printError('429 Too Many Requests');
+			if (response) {
+				if (response.statusCode == 429) {
+					printError('429 Too Many Requests');
+				} else if (response.statusCode == 403) {
+					// this proxy ip maybe in the steam blacklist 
+					proxies.cleanInvalidPreferredProxy(proxyId);
+					printError('403 Forbidden');
+				}
 			}
 			
 			let maxRetryTimes = Math.min(config.maxRetryTimes, proxies.getProxyCount());
@@ -65,6 +72,6 @@ function _request(qs, proxyId = 0, retryTimes = 0) {
 	});
 
 	function printError(reason) { 
-		console.error(`Error: ${reason} (name: "${name}", proxy: ${proxy})`)
+		console.error(`Error: ${reason} (${proxy})`)
 	}
 }

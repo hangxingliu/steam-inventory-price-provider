@@ -12,9 +12,11 @@ let proxiesUpdate = ([
 	require('./proxies-update/api2'),
 ])[1];
 
+let startupTime = new Date().toString();
+
 web.use((req, res) => {
 	if (req.url == '/')
-		return response(200, { success: 'connected!' });
+		return response(200, { success: 'connected!', startupTime });
 
 	if (req.method != 'GET')
 		return response(405, { error: `${req.method} is not allowed!` });
@@ -25,6 +27,9 @@ web.use((req, res) => {
 			return response(403, { error: `wrong key!` });
 	}
 	
+	if(req.url.startsWith('/summary'))
+		return response(200, proxies.getProxiesSummary());
+
 	if (!checkParameters('country', 'currency', 'appid', 'market_hash_name'))	
 		return;
 
@@ -79,6 +84,7 @@ web.use((err, req, res, next) => {
 // ===================
 new Promise((resolve) => {
 	if (config.enableProxiesUpdate) { 
+		proxies.bindProxyUpdater(proxiesUpdate);
 		return proxiesUpdate.get().then(newProxies => { 
 			console.log(`Got ${newProxies.length} proxies.`);
 			proxies.updateProxies(newProxies);
